@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 <ruleset name="WordPress Coding Standards">
-	<rule ref="Aysnc WordPress"/>
+	<rule ref="Aysnc-WordPress"/>
 
 	<file>./wordpress-dynamic-media.php</file>
 	<file>./src</file>
