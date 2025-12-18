@@ -10,6 +10,7 @@ declare( strict_types = 1 );
 namespace Aysnc\WordPress\DynamicMedia;
 
 use Aysnc\WordPress\DynamicMedia\Adapters\Cloudinary;
+use WP_HTML_Tag_Processor;
 
 class Plugin {
 	/**
@@ -28,6 +29,7 @@ class Plugin {
 		add_action( 'after_setup_theme', [ __CLASS__, 'register_adapters' ] );
 		add_filter( 'image_downsize', [ __CLASS__, 'filter_image_downsize' ], 999, 3 );
 		add_filter( 'wp_calculate_image_srcset', [ __CLASS__, 'filter_wp_calculate_image_srcset' ], 999, 5 );
+		add_filter( 'the_content', [ __CLASS__, 'update_content_images' ], 999 );
 	}
 
 	/**
@@ -193,6 +195,87 @@ class Plugin {
 		return [
 			$dimension => $source['value'],
 		];
+	}
+
+	/**
+	 * Parse content and update images to use dynamic media URLs.
+	 *
+	 * @param string $content Content to process.
+	 *
+	 * @return string Processed content.
+	 */
+	public static function update_content_images( string $content = '' ): string {
+		if ( self::$paused || empty( $content ) ) {
+			return $content;
+		}
+
+		$processor = new WP_HTML_Tag_Processor( $content );
+
+		while ( $processor->next_tag( 'img' ) ) {
+			$class = $processor->get_attribute( 'class' );
+			if ( ! is_string( $class ) || ! preg_match( '/wp-image-([0-9]+)/i', $class, $class_id ) ) {
+				continue;
+			}
+
+			$attachment_id = absint( $class_id[1] );
+			if ( empty( $attachment_id ) ) {
+				continue;
+			}
+
+			$src    = $processor->get_attribute( 'src' );
+			$width  = $processor->get_attribute( 'width' );
+			$height = $processor->get_attribute( 'height' );
+
+			// Extract size name from the class.
+			$size = '';
+			if ( preg_match( '/size-([a-zA-Z0-9-_]+)/', $class, $match_size ) ) {
+				$size = $match_size[1];
+			}
+
+			// Allow filters to customize the URL.
+			$filtered_src = apply_filters(
+				'aysnc_wordpress_dynamic_media_content_image_src',
+				null,
+				$attachment_id,
+				$src,
+				$width,
+				$height,
+				$size,
+			);
+
+			if ( is_string( $filtered_src ) && ! empty( $filtered_src ) ) {
+				$processor->set_attribute( 'src', $filtered_src );
+				continue;
+			}
+
+			// Generate dynamic URL.
+			if ( empty( $src ) || ! is_string( $src ) ) {
+				continue;
+			}
+
+			$dimensions = [];
+			if ( ! empty( $width ) && ! empty( $height ) ) {
+				$dimensions = [
+					'width'  => (int) $width,
+					'height' => (int) $height,
+				];
+
+				// Determine crop mode from size name.
+				if ( ! empty( $size ) ) {
+					$size_dimensions = Media::get_image_size_by_name( $size );
+					if ( ! empty( $size_dimensions ) ) {
+						$dimensions['hard_crop'] = (bool) $size_dimensions['crop'];
+					}
+				}
+			}
+
+			$dynamic_url = Media::get_dynamic_url( $attachment_id, $dimensions );
+			if ( ! empty( $dynamic_url ) ) {
+				$processor->set_attribute( 'src', $dynamic_url );
+			}
+		}
+
+		return $processor->get_updated_html();
 	}
 
 	/**
