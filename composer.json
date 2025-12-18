@@ -11,7 +11,8 @@
   ],
   "autoload": {
     "psr-4": {
-      "Aysnc\\WordPress\\DynamicMedia\\": "src"
+      "Aysnc\\WordPress\\DynamicMedia\\": "src",
+      "Aysnc\\WordPress\\DynamicMedia\\Tests\\": "tests"
     }
   },
   "require": {
@@ -22,7 +23,10 @@
     "aysnc/wordpress-phpcs": "^0.1.0",
     "squizlabs/php_codesniffer": "^3.13.5",
     "phpstan/phpstan": "^2.1",
-    "roots/wordpress": "*"
+    "roots/wordpress": "*",
+    "phpunit/phpunit": "^9.6",
+    "yoast/phpunit-polyfills": "^2.0",
+    "wp-phpunit/wp-phpunit": "^6.9"
   },
   "scripts": {
     "lint": "phpcs",

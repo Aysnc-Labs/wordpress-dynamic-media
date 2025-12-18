@@ -5,7 +5,9 @@ parameters:
 	scanDirectories:
 		- vendor
 		- wordpress
+		- vendor/wp-phpunit
 	paths:
 		- src
+		- tests
 	excludePaths:
 		- wordpress/wp-admin/includes/noop.php

@@ -4,6 +4,9 @@
     "lint:php": "composer lint",
     "format:php": "composer format",
     "static-analysis:php": "composer static-analysis",
+    "test:php": "wp-env run tests-cli --env-cwd=wp-content/plugins/wordpress-dynamic-media ./vendor/bin/phpunit",
+    "test:php:setup": "wp-env run tests-cli --env-cwd=wp-content/plugins/wordpress-dynamic-media composer install && npm run test:php",
+    "lint:test": "npm run lint:php && npm run test:php:setup && npm run static-analysis:php",
     "wp-env": "wp-env"
   },
   "devDependencies": {

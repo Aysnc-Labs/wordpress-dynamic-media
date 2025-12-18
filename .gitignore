@@ -6,6 +6,7 @@
 /*
 !.github
 !src
+!tests
 !.editorconfig
 !.gitattributes
 !.gitignore
@@ -17,6 +18,7 @@
 !package-lock.json
 !phpcs.xml
 !phpstan.neon
+!phpunit.xml
 !wordpress-dynamic-media.php
 !CONTRIBUTING.md
 !LICENSE
