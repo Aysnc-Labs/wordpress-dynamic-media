@@ -37,9 +37,9 @@ class Cloudinary implements MediaAdapter {
 
 		self::$config = (array) apply_filters( 'aysnc_wordpress_cloudinary_config', [] );
 		self::$config = [
-			'cloud_name'          => is_string( self::$config['cloud_name'] ) ? self::$config['cloud_name'] : '',
-			'auto_mapping_folder' => is_string( self::$config['auto_mapping_folder'] ) ? self::$config['auto_mapping_folder'] : '',
-			'domain'              => is_string( self::$config['domain'] ) ? self::$config['domain'] : 'res.cloudinary.com',
+			'cloud_name'          => isset( self::$config['cloud_name'] ) && is_string( self::$config['cloud_name'] ) ? self::$config['cloud_name'] : '',
+			'auto_mapping_folder' => isset( self::$config['auto_mapping_folder'] ) && is_string( self::$config['auto_mapping_folder'] ) ? self::$config['auto_mapping_folder'] : '',
+			'domain'              => isset( self::$config['domain'] ) && is_string( self::$config['domain'] ) ? self::$config['domain'] : 'res.cloudinary.com',
 		];
 
 		return self::$config;
@@ -212,12 +212,12 @@ class Cloudinary implements MediaAdapter {
 					case 'progressive':
 						if ( true === $value ) {
 							$slug[] = $cloudinary_params[ $key ];
-						} elseif ( is_string( $value ) ) {
+						} elseif ( is_string( $value ) || is_numeric( $value ) ) {
 							$slug[] = $cloudinary_params[ $key ] . ':' . $value;
 						}
 						break;
 					default:
-						if ( is_string( $value ) ) {
+						if ( is_scalar( $value ) || ( is_object( $value ) && method_exists( $value, '__toString' ) ) ) {
 							$slug[] = $cloudinary_params[ $key ] . '_' . $value;
 						}
 				}
