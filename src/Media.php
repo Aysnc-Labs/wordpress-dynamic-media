@@ -103,7 +103,7 @@ class Media {
 	 *
 	 * @return string Dynamic image URL.
 	 */
-	public static function get_dynamic_url( int $attachment_id, array $args ): string {
+	public static function get_dynamic_url( int $attachment_id, array $args = [] ): string {
 		$adapter = Adapter::get();
 		if ( ! $adapter ) {
 			return '';

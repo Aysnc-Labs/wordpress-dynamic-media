@@ -101,20 +101,14 @@ class Cloudinary implements MediaAdapter {
 			return $original_url;
 		}
 
-		// Check if we need to ignore REST API calls.
-		$allow_rest_call = apply_filters( 'aysnc_wordpress_cloudinary_allow_rest_api_call', false );
-		if ( ! $allow_rest_call ) {
-			global $wp_rest_server;
-			if ( null !== $wp_rest_server ) {
-				return $original_url;
-			}
-		}
-
 		// Move width and height to transform.
-		$args['transform'] = [
-			'width'  => $args['width'],
-			'height' => $args['height'],
-		];
+		$args['transform'] = [];
+		if ( ! empty( $args['width'] ) ) {
+			$args['transform']['width'] = $args['width'];
+		}
+		if ( ! empty( $args['height'] ) ) {
+			$args['transform']['height'] = $args['height'];
+		}
 
 		if ( isset( $args['hard_crop'] ) ) {
 			if ( true === $args['hard_crop'] ) {

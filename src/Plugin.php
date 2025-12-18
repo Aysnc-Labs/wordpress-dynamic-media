@@ -27,6 +27,7 @@ class Plugin {
 	public static function bootstrap(): void {
 		add_action( 'after_setup_theme', [ __CLASS__, 'register_adapters' ] );
 		add_filter( 'image_downsize', [ __CLASS__, 'filter_image_downsize' ], 999, 3 );
+		add_filter( 'wp_calculate_image_srcset', [ __CLASS__, 'filter_wp_calculate_image_srcset' ], 999, 5 );
 	}
 
 	/**
@@ -112,6 +113,85 @@ class Plugin {
 			$dynamic_image_url,
 			$dimensions['width'],
 			$dimensions['height'],
+		];
+	}
+
+	/**
+	 * Filter wp_calculate_image_srcset.
+	 *
+	 * @param mixed[] $sources       Original sources.
+	 * @param mixed[] $size_array    Size array.
+	 * @param string  $image_src     Image source.
+	 * @param mixed[] $image_meta    Image meta.
+	 * @param int     $attachment_id Attachment ID.
+	 *
+	 * @return mixed[]
+	 */
+	public static function filter_wp_calculate_image_srcset( array $sources, array $size_array, string $image_src, array $image_meta, int $attachment_id ): array {
+		if ( self::$paused || empty( $sources ) ) {
+			return $sources;
+		}
+
+		$sizes = Media::get_all_image_sizes();
+
+		foreach ( $sources as $key => $source ) {
+			$source     = (array) $source;
+			$dimensions = self::get_srcset_dimensions( $image_meta, $source, $sizes );
+
+			if ( empty( $dimensions ) ) {
+				continue;
+			}
+
+			$dimensions  = (array) apply_filters( 'aysnc_wordpress_dynamic_media_srcset_dimensions', $dimensions, $attachment_id, $image_meta, $image_src );
+			$dynamic_url = Media::get_dynamic_url( $attachment_id, $dimensions );
+
+			if ( ! empty( $dynamic_url ) && is_array( $sources[ $key ] ) ) {
+				$sources[ $key ]['url'] = $dynamic_url;
+			}
+		}
+
+		return $sources;
+	}
+
+	/**
+	 * Get dimensions from image meta which matches a descriptor.
+	 *
+	 * @param mixed[] $image_meta       Image metadata.
+	 * @param mixed[] $source           Source descriptor array.
+	 * @param mixed[] $registered_sizes Registered image sizes with crop settings.
+	 *
+	 * @return mixed[]
+	 */
+	public static function get_srcset_dimensions( array $image_meta = [], array $source = [], array $registered_sizes = [] ): array {
+		$dimension = 'w' === $source['descriptor'] ? 'width' : 'height';
+
+		foreach ( (array) $image_meta['sizes'] as $size ) {
+			if ( is_array( $size ) && $size[ $dimension ] === $source['value'] ) {
+				$dimensions = [
+					'width'  => $size['width'],
+					'height' => $size['height'],
+				];
+
+				// Determine crop mode by matching to registered sizes.
+				if ( ! empty( $registered_sizes ) ) {
+					foreach ( $registered_sizes as $registered_size ) {
+						if (
+							is_array( $registered_size )
+							&& $dimensions['width'] === $registered_size['width']
+							&& $dimensions['height'] === $registered_size['height']
+						) {
+							$dimensions['hard_crop'] = (bool) $registered_size['crop'];
+							break;
+						}
+					}
+				}
+
+				return $dimensions;
+			}
+		}
+
+		return [
+			$dimension => $source['value'],
 		];
 	}
 
