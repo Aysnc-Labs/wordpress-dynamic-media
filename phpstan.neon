@@ -1,0 +1,11 @@
+parameters:
+	level: max
+	scanFiles:
+		- wordpress-dynamic-media.php
+	scanDirectories:
+		- vendor
+		- wordpress
+	paths:
+		- src
+	excludePaths:
+		- wordpress/wp-admin/includes/noop.php

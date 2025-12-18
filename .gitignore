@@ -1,0 +1,23 @@
+# --- Windows and Mac files
+[Tt]humbs.db
+.DS_Store
+
+# --- Root
+/*
+!.github
+!src
+!.editorconfig
+!.gitattributes
+!.gitignore
+!.php-cs-fixer.dist.php
+!.wp-env.json
+!composer.json
+!composer.lock
+!package.json
+!package-lock.json
+!phpcs.xml
+!phpstan.neon
+!wordpress-dynamic-media.php
+!CONTRIBUTING.md
+!LICENSE
+!README.md

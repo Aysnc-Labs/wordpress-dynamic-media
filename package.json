@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "start": "composer install && npm ci && npm run wp-env start",
+    "lint:php": "composer lint",
+    "format:php": "composer format",
+    "static-analysis:php": "composer static-analysis",
+    "wp-env": "wp-env"
+  },
+  "devDependencies": {
+    "@wordpress/env": "^10.36.0"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "name": "aysnc/worpress-dynamic-media",
+  "description": "Dynamic media for WordPress.",
+  "type": "wordpress-plugin",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Aysnc",
+      "homepage": "https://aysnc.dev"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Aysnc\\WordPress\\DynamicMedia\\": "src"
+    }
+  },
+  "require": {
+    "php": "^8.3"
+  },
+  "require-dev": {
+    "aysnc/wordpress-php-cs-fixer": "^0.3.0",
+    "aysnc/wordpress-phpcs": "^0.1.0",
+    "squizlabs/php_codesniffer": "^3.13.5",
+    "phpstan/phpstan": "^2.1",
+    "roots/wordpress": "*"
+  },
+  "scripts": {
+    "lint": "phpcs",
+    "format": "vendor/bin/php-cs-fixer fix",
+    "static-analysis": "phpstan analyse -c phpstan.neon --memory-limit=512M"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "roots/wordpress-core-installer": true
+    }
+  }
+}
