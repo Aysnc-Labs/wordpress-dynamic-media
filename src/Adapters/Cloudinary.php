@@ -17,6 +17,8 @@ class Cloudinary implements MediaAdapter {
 	 *    cloud_name: string,
 	 *    auto_mapping_folder: string,
 	 *    domain: string,
+	 *    default_hard_crop: string,
+	 *    default_soft_crop: string,
 	 *  }|array{} $config Cloudinary configuration.
 	 */
 	protected static array $config = [];
@@ -28,6 +30,8 @@ class Cloudinary implements MediaAdapter {
 	 *    cloud_name: string,
 	 *    auto_mapping_folder: string,
 	 *    domain: string,
+	 *    default_hard_crop: string,
+	 *    default_soft_crop: string,
 	 * }
 	 */
 	public static function get_config(): array {
@@ -40,6 +44,8 @@ class Cloudinary implements MediaAdapter {
 			'cloud_name'          => isset( self::$config['cloud_name'] ) && is_string( self::$config['cloud_name'] ) ? self::$config['cloud_name'] : '',
 			'auto_mapping_folder' => isset( self::$config['auto_mapping_folder'] ) && is_string( self::$config['auto_mapping_folder'] ) ? self::$config['auto_mapping_folder'] : '',
 			'domain'              => isset( self::$config['domain'] ) && is_string( self::$config['domain'] ) ? self::$config['domain'] : 'res.cloudinary.com',
+			'default_hard_crop'   => isset( self::$config['default_hard_crop'] ) && is_string( self::$config['default_hard_crop'] ) ? self::$config['default_hard_crop'] : 'fill',
+			'default_soft_crop'   => isset( self::$config['default_soft_crop'] ) && is_string( self::$config['default_soft_crop'] ) ? self::$config['default_soft_crop'] : 'fit',
 		];
 
 		return self::$config;
@@ -104,10 +110,18 @@ class Cloudinary implements MediaAdapter {
 			}
 		}
 
-		// Default args.
-		$default_args = apply_filters( 'aysnc_wordpress_cloudinary_default_args', [] );
-		if ( ! empty( $default_args ) && is_array( $default_args ) ) {
-			$args = array_replace_recursive( $default_args, $args );
+		// Move width and height to transform.
+		$args['transform'] = [
+			'width'  => $args['width'],
+			'height' => $args['height'],
+		];
+
+		if ( isset( $args['hard_crop'] ) ) {
+			if ( true === $args['hard_crop'] ) {
+				$args['transform']['crop'] = $config['default_hard_crop'];
+			} else {
+				$args['transform']['crop'] = $config['default_soft_crop'];
+			}
 		}
 
 		// Filter args.
