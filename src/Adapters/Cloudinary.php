@@ -101,14 +101,15 @@ class Cloudinary implements MediaAdapter {
 			return $original_url;
 		}
 
-		// Move width and height to transform.
-		$args['transform'] = [];
+		// Build transform array, preserving any passed transforms.
+		$transform = isset( $args['transform'] ) && is_array( $args['transform'] ) ? $args['transform'] : [];
 		if ( ! empty( $args['width'] ) ) {
-			$args['transform']['width'] = $args['width'];
+			$transform['width'] = $args['width'];
 		}
 		if ( ! empty( $args['height'] ) ) {
-			$args['transform']['height'] = $args['height'];
+			$transform['height'] = $args['height'];
 		}
+		$args['transform'] = $transform;
 
 		if ( isset( $args['hard_crop'] ) ) {
 			if ( true === $args['hard_crop'] ) {

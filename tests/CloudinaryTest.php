@@ -536,4 +536,141 @@ class CloudinaryTest extends WP_UnitTestCase {
 		// Should match full Cloudinary URL with width and quality parameters.
 		$this->assertMatchesRegularExpression( '#^https://res\.cloudinary\.com/test-cloud/w_300,q_90/wp-content/.+\.jpg$#', $url );
 	}
+
+	/**
+	 * Test passing transform array directly to get_dynamic_url.
+	 */
+	public function test_get_dynamic_url_with_direct_transform(): void {
+		// Set up config.
+		add_filter(
+			'aysnc_wordpress_cloudinary_config',
+			function () {
+				return [
+					'cloud_name'          => 'test-cloud',
+					'auto_mapping_folder' => 'wp-content',
+				];
+			},
+		);
+
+		// Create a test attachment.
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$url = Cloudinary::get_dynamic_url(
+			$attachment_id,
+			[
+				'width'     => 800,
+				'transform' => [
+					'quality'      => 'auto',
+					'fetch_format' => 'auto',
+				],
+			],
+		);
+
+		// Should include width and the passed transform params (passed transforms first, then dimensions).
+		$this->assertMatchesRegularExpression( '#^https://res\.cloudinary\.com/test-cloud/q_auto,f_auto,w_800/wp-content/.+\.jpg$#', $url );
+	}
+
+	/**
+	 * Test passing transform array with effect parameter.
+	 */
+	public function test_get_dynamic_url_with_direct_transform_effect(): void {
+		// Set up config.
+		add_filter(
+			'aysnc_wordpress_cloudinary_config',
+			function () {
+				return [
+					'cloud_name'          => 'test-cloud',
+					'auto_mapping_folder' => 'wp-content',
+				];
+			},
+		);
+
+		// Create a test attachment.
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$url = Cloudinary::get_dynamic_url(
+			$attachment_id,
+			[
+				'width'     => 100,
+				'transform' => [
+					'effect'  => 'blur:1000',
+					'quality' => 30,
+				],
+			],
+		);
+
+		// Should include width and the effect/quality params (passed transforms first, then dimensions).
+		$this->assertMatchesRegularExpression( '#^https://res\.cloudinary\.com/test-cloud/e_blur:1000,q_30,w_100/wp-content/.+\.jpg$#', $url );
+	}
+
+	/**
+	 * Test that direct transforms are merged with width/height, not overwritten.
+	 */
+	public function test_get_dynamic_url_direct_transform_merges_dimensions(): void {
+		// Set up config.
+		add_filter(
+			'aysnc_wordpress_cloudinary_config',
+			function () {
+				return [
+					'cloud_name'          => 'test-cloud',
+					'auto_mapping_folder' => 'wp-content',
+				];
+			},
+		);
+
+		// Create a test attachment.
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$url = Cloudinary::get_dynamic_url(
+			$attachment_id,
+			[
+				'width'     => 600,
+				'height'    => 400,
+				'hard_crop' => true,
+				'transform' => [
+					'gravity' => 'face',
+					'quality' => 'auto:best',
+				],
+			],
+		);
+
+		// Should include all params: dimensions, crop, gravity, and quality.
+		$this->assertMatchesRegularExpression( '#^https://res\.cloudinary\.com/test-cloud/g_face,q_auto:best,w_600,h_400,c_fill/wp-content/.+\.jpg$#', $url );
+	}
+
+	/**
+	 * Test passing only transform array without width/height.
+	 */
+	public function test_get_dynamic_url_with_transform_only(): void {
+		// Set up config.
+		add_filter(
+			'aysnc_wordpress_cloudinary_config',
+			function () {
+				return [
+					'cloud_name'          => 'test-cloud',
+					'auto_mapping_folder' => 'wp-content',
+				];
+			},
+		);
+
+		// Create a test attachment.
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$url = Cloudinary::get_dynamic_url(
+			$attachment_id,
+			[
+				'transform' => [
+					'quality'      => 'auto',
+					'fetch_format' => 'auto',
+				],
+			],
+		);
+
+		// Should include only the transform params (no dimensions).
+		$this->assertMatchesRegularExpression( '#^https://res\.cloudinary\.com/test-cloud/q_auto,f_auto/wp-content/.+\.jpg$#', $url );
+	}
 }
