@@ -103,12 +103,12 @@ class Plugin {
 		}
 
 		if ( empty( $dimensions ) ) {
-			return false;
+			return $downsize;
 		}
 
 		$dynamic_image_url = Media::get_dynamic_url( $id, $dimensions );
 		if ( empty( $dynamic_image_url ) ) {
-			return false;
+			return $downsize;
 		}
 
 		return [
