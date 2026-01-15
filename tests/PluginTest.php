@@ -14,6 +14,9 @@ use Aysnc\WordPress\DynamicMedia\Adapters;
 use Aysnc\WordPress\DynamicMedia\Media;
 use Aysnc\WordPress\DynamicMedia\Plugin;
 use ReflectionClass;
+use WP_Post;
+use WP_REST_Request;
+use WP_REST_Response;
 use WP_UnitTestCase;
 
 /**
@@ -88,7 +91,7 @@ class PluginTest extends WP_UnitTestCase {
 	 * Test filter_image_downsize with array size.
 	 */
 	public function test_filter_image_downsize_with_array_size(): void {
-		// Set up adapter and config.
+		// Set up the adapter and config.
 		$this->setup_cloudinary_adapter();
 
 		// Create a test attachment.
@@ -102,7 +105,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertCount( 3, $result );
-		$this->assertIsString( $result[0] ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertSame( 300, $result[1] );
 		$this->assertSame( 200, $result[2] );
 		$this->assertStringContainsString( 'cloudinary.com', $result[0] );
@@ -126,9 +128,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertCount( 3, $result );
-		$this->assertIsString( $result[0] ); // @phpstan-ignore method.alreadyNarrowedType
-		$this->assertIsInt( $result[1] ); // @phpstan-ignore method.alreadyNarrowedType
-		$this->assertIsInt( $result[2] ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertStringContainsString( 'cloudinary.com', $result[0] );
 	}
 
@@ -136,7 +135,7 @@ class PluginTest extends WP_UnitTestCase {
 	 * Test filter_image_downsize with named size.
 	 */
 	public function test_filter_image_downsize_with_named_size(): void {
-		// Set up adapter and config.
+		// Set up the adapter and config.
 		$this->setup_cloudinary_adapter();
 
 		// Create a test attachment.
@@ -150,7 +149,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertCount( 3, $result );
-		$this->assertIsString( $result[0] ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertStringContainsString( 'cloudinary.com', $result[0] );
 	}
 
@@ -181,7 +179,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertCount( 3, $result );
-		$this->assertIsString( $result[0] ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertStringContainsString( 'c_fit', $result[0] );
 
 		// Clean up.
@@ -220,7 +217,6 @@ class PluginTest extends WP_UnitTestCase {
 			$attachment_id,
 		);
 
-		$this->assertIsArray( $result ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertArrayHasKey( '300', $result );
 		$this->assertIsArray( $result['300'] );
 		$this->assertArrayHasKey( 'url', $result['300'] );
@@ -281,7 +277,7 @@ class PluginTest extends WP_UnitTestCase {
 
 		$dimensions = Plugin::get_srcset_dimensions( $image_meta, $source, $registered_sizes );
 
-		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType
+		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType.
 		$this->assertSame( 300, $dimensions['width'] );
 		$this->assertSame( 200, $dimensions['height'] );
 		$this->assertTrue( $dimensions['hard_crop'] );
@@ -307,7 +303,7 @@ class PluginTest extends WP_UnitTestCase {
 
 		$dimensions = Plugin::get_srcset_dimensions( $image_meta, $source, [] );
 
-		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType
+		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType.
 		$this->assertSame( 300, $dimensions['width'] );
 		$this->assertArrayNotHasKey( 'height', $dimensions );
 	}
@@ -333,7 +329,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$result = Plugin::update_content_images( $content );
 
-		$this->assertIsString( $result ); // @phpstan-ignore method.alreadyNarrowedType
 		$this->assertStringContainsString( 'cloudinary.com', $result );
 		$this->assertStringContainsString( 'wp-image-' . $attachment_id, $result );
 	}
@@ -416,6 +411,207 @@ class PluginTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test get_config returns default values.
+	 */
+	public function test_get_config_default_values(): void {
+		// Reset config.
+		$this->reset_plugin_config();
+
+		$config = Plugin::get_config();
+
+		$this->assertTrue( $config['rest_api_enabled'] );
+	}
+
+	/**
+	 * Test get_config applies filter.
+	 */
+	public function test_get_config_applies_filter(): void {
+		// Reset config.
+		$this->reset_plugin_config();
+
+		add_filter(
+			'aysnc_wordpress_dynamic_media_config',
+			function () {
+				return [
+					'rest_api_enabled' => false,
+				];
+			},
+		);
+
+		$config = Plugin::get_config();
+
+		$this->assertFalse( $config['rest_api_enabled'] );
+
+		// Clean up.
+		remove_all_filters( 'aysnc_wordpress_dynamic_media_config' );
+	}
+
+	/**
+	 * Test filter_rest_prepare_attachment transforms URLs.
+	 */
+	public function test_filter_rest_prepare_attachment(): void {
+		// Reset config and set up adapter.
+		$this->reset_plugin_config();
+		$this->setup_cloudinary_adapter();
+
+		// Create a test attachment.
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		Plugin::pause( false );
+
+		// Create mock response data.
+		$attachment = get_post( $attachment_id );
+		$this->assertInstanceOf( WP_Post::class, $attachment );
+
+		$response = new WP_REST_Response(
+			[
+				'source_url'    => 'http://example.com/wp-content/uploads/test.jpg',
+				'media_details' => [
+					'sizes' => [
+						'thumbnail' => [
+							'source_url' => 'http://example.com/wp-content/uploads/test-150x150.jpg',
+							'width'      => 150,
+							'height'     => 150,
+						],
+						'medium' => [
+							'source_url' => 'http://example.com/wp-content/uploads/test-300x200.jpg',
+							'width'      => 300,
+							'height'     => 200,
+						],
+					],
+				],
+			],
+		);
+
+		$request = new WP_REST_Request( 'GET', '/wp/v2/media/' . $attachment_id );
+
+		$result = Plugin::filter_rest_prepare_attachment( $response, $attachment, $request );
+		$data   = $result->get_data();
+
+		// Check source_url is transformed.
+		$this->assertTrue( is_array( $data ) && ! empty( $data['source_url'] ) );
+		$this->assertIsString( $data['source_url'] );
+		$this->assertStringContainsString( 'cloudinary.com', $data['source_url'] );
+
+		// Check sizes are transformed.
+		$this->assertTrue( is_array( $data['media_details'] ) );
+		$this->assertTrue( is_array( $data['media_details']['sizes'] ) );
+		$this->assertTrue( is_array( $data['media_details']['sizes']['thumbnail'] ) );
+		$this->assertIsString( $data['media_details']['sizes']['thumbnail']['source_url'] );
+		$this->assertStringContainsString( 'cloudinary.com', $data['media_details']['sizes']['thumbnail']['source_url'] );
+		$this->assertTrue( is_array( $data['media_details']['sizes']['medium'] ) );
+		$this->assertIsString( $data['media_details']['sizes']['medium']['source_url'] );
+		$this->assertStringContainsString( 'cloudinary.com', $data['media_details']['sizes']['medium']['source_url'] );
+	}
+
+	/**
+	 * Test filter_rest_prepare_attachment respects the paused state.
+	 */
+	public function test_filter_rest_prepare_attachment_when_paused(): void {
+		Plugin::pause( true );
+
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$attachment = get_post( $attachment_id );
+		$this->assertInstanceOf( WP_Post::class, $attachment );
+
+		$original_url = 'http://example.com/wp-content/uploads/test.jpg';
+		$response     = new WP_REST_Response( [ 'source_url' => $original_url ] );
+		$request      = new WP_REST_Request( 'GET', '/wp/v2/media/' . $attachment_id );
+
+		$result = Plugin::filter_rest_prepare_attachment( $response, $attachment, $request );
+		$data   = $result->get_data();
+
+		// Should not be transformed.
+		$this->assertTrue( is_array( $data ) && ! empty( $data['source_url'] ) );
+		$this->assertSame( $original_url, $data['source_url'] );
+
+		Plugin::pause( false );
+	}
+
+	/**
+	 * Test filter_rest_prepare_attachment respects config.
+	 */
+	public function test_filter_rest_prepare_attachment_respects_config(): void {
+		// Reset config and disable REST API.
+		$this->reset_plugin_config();
+
+		add_filter(
+			'aysnc_wordpress_dynamic_media_config',
+			function () {
+				return [ 'rest_api_enabled' => false ];
+			},
+		);
+
+		$this->setup_cloudinary_adapter();
+		Plugin::pause( false );
+
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$attachment = get_post( $attachment_id );
+		$this->assertInstanceOf( WP_Post::class, $attachment );
+
+		$original_url = 'http://example.com/wp-content/uploads/test.jpg';
+		$response     = new WP_REST_Response( [ 'source_url' => $original_url ] );
+		$request      = new WP_REST_Request( 'GET', '/wp/v2/media/' . $attachment_id );
+
+		$result = Plugin::filter_rest_prepare_attachment( $response, $attachment, $request );
+		$data   = $result->get_data();
+
+		// Should not be transformed.
+		$this->assertTrue( is_array( $data ) && ! empty( $data['source_url'] ) );
+		$this->assertSame( $original_url, $data['source_url'] );
+
+		// Clean up.
+		remove_all_filters( 'aysnc_wordpress_dynamic_media_config' );
+	}
+
+	/**
+	 * Test filter_rest_prepare_attachment respects per-request filter.
+	 */
+	public function test_filter_rest_prepare_attachment_respects_per_request_filter(): void {
+		// Reset config and set up an adapter.
+		$this->reset_plugin_config();
+		$this->setup_cloudinary_adapter();
+		Plugin::pause( false );
+
+		$attachment_id = $this->factory->attachment->create_upload_object( __DIR__ . '/fixtures/test-image.jpg' );
+		$this->assertIsInt( $attachment_id );
+
+		$attachment = get_post( $attachment_id );
+		$this->assertInstanceOf( WP_Post::class, $attachment );
+
+		// Disable via per-request filter.
+		add_filter( 'aysnc_wordpress_dynamic_media_rest_enabled', '__return_false' );
+
+		$original_url = 'http://example.com/wp-content/uploads/test.jpg';
+		$response     = new WP_REST_Response( [ 'source_url' => $original_url ] );
+		$request      = new WP_REST_Request( 'GET', '/wp/v2/media/' . $attachment_id );
+
+		$result = Plugin::filter_rest_prepare_attachment( $response, $attachment, $request );
+		$data   = $result->get_data();
+
+		// Should not be transformed.
+		$this->assertTrue( is_array( $data ) && ! empty( $data['source_url'] ) );
+		$this->assertSame( $original_url, $data['source_url'] );
+
+		// Clean up.
+		remove_all_filters( 'aysnc_wordpress_dynamic_media_rest_enabled' );
+	}
+
+	/**
+	 * Test that the rest_prepare_attachment hook is registered.
+	 */
+	public function test_rest_prepare_attachment_hook_registered(): void {
+		Plugin::bootstrap();
+
+		$this->assertNotFalse( has_filter( 'rest_prepare_attachment', [ Plugin::class, 'filter_rest_prepare_attachment' ] ) );
+	}
+
+	/**
 	 * Helper method to set up Cloudinary adapter for tests.
 	 */
 	protected function setup_cloudinary_adapter(): void {
@@ -432,5 +628,15 @@ class PluginTest extends WP_UnitTestCase {
 
 		// Register adapter.
 		Plugin::register_adapters();
+	}
+
+	/**
+	 * Helper method to reset plugin config.
+	 */
+	protected function reset_plugin_config(): void {
+		$reflection      = new ReflectionClass( Plugin::class );
+		$config_property = $reflection->getProperty( 'config' );
+		$config_property->setAccessible( true );
+		$config_property->setValue( null, [] );
 	}
 }

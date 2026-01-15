@@ -6,6 +6,23 @@
 Automatically transform WordPress media URLs into dynamic, optimized URLs powered by image transformation services like
 Cloudinary.
 
+## Requirements
+
+- PHP 8.3+
+- WordPress 6.2+
+- A Cloudinary account
+  with [auto-upload mapping](https://cloudinary.com/documentation/fetch_remote_images#auto_upload_remote_resources)
+  configured
+
+## Installation
+
+```bash
+composer require aysnc/wordpress-dynamic-media
+```
+
+The plugin auto-activates through Composer's `wordpress-plugin` type. If your setup doesn't support that, activate it
+manually in wp-admin.
+
 ## What It Does
 
 When you upload an image to WordPress, it gets stored at a URL like this:
@@ -29,6 +46,34 @@ your templates or content.
 - Responsive `srcset` attributes
 - Images embedded in post/page content
 - Any code using `image_downsize()`
+- REST API media endpoints (`/wp/v2/media`)
+
+## REST API Support
+
+The plugin transforms URLs in REST API responses by default. When you fetch media via `/wp/v2/media`, both `source_url`
+and all size URLs in `media_details.sizes` are transformed.
+
+This is enabled by default. To disable it globally:
+
+```php
+add_filter( 'aysnc_wordpress_dynamic_media_config', function () {
+    return [
+        'rest_api_enabled' => false,
+    ];
+} );
+```
+
+Or disable it per-request (useful for admin/editor contexts):
+
+```php
+add_filter( 'aysnc_wordpress_dynamic_media_rest_enabled', function ( bool $enabled, WP_REST_Request $request, WP_Post $attachment ): bool {
+    // Disable for authenticated requests (likely editor)
+    if ( is_user_logged_in() ) {
+        return false;
+    }
+    return $enabled;
+}, 10, 3 );
+```
 
 ## Generating URLs
 
@@ -102,23 +147,6 @@ function get_image_url( int $id, array $args = [] ): string {
 That way if you change adapters - or just want to tweak your transforms - you have one place to update instead of
 hunting through templates.
 
-## Requirements
-
-- PHP 8.3+
-- WordPress 6.2+
-- A Cloudinary account
-  with [auto-upload mapping](https://cloudinary.com/documentation/fetch_remote_images#auto_upload_remote_resources)
-  configured
-
-## Installation
-
-```bash
-composer require aysnc/wordpress-dynamic-media
-```
-
-The plugin auto-activates through Composer's `wordpress-plugin` type. If your setup doesn't support that, activate it
-manually in wp-admin.
-
 ## Configuration
 
 The plugin needs to know your Cloudinary details. Add this filter to your theme or a mu-plugin:
@@ -160,6 +188,42 @@ add_filter( 'aysnc_wordpress_cloudinary_config', function () {
 ```
 
 ## Hooks & Filters
+
+### `aysnc_wordpress_dynamic_media_config`
+
+Global plugin configuration.
+
+```php
+add_filter( 'aysnc_wordpress_dynamic_media_config', function (): array {
+    return [
+        'rest_api_enabled' => true, // Enable REST API transformation (default: true)
+    ];
+} );
+```
+
+---
+
+### `aysnc_wordpress_dynamic_media_rest_enabled`
+
+Control REST API transformation on a per-request basis. Receives the request and attachment objects for context.
+
+```php
+add_filter( 'aysnc_wordpress_dynamic_media_rest_enabled', function ( bool $enabled, WP_REST_Request $request, WP_Post $attachment ): bool {
+    // Skip transformation for specific attachments
+    if ( get_post_meta( $attachment->ID, '_skip_dynamic_media', true ) ) {
+        return false;
+    }
+    return $enabled;
+}, 10, 3 );
+```
+
+**Parameters:**
+
+- `$enabled` - Whether REST API transformation is enabled (default: `true`)
+- `$request` - The REST request object
+- `$attachment` - The attachment post object
+
+---
 
 ### `aysnc_wordpress_cloudinary_config`
 

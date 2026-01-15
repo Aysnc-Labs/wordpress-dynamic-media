@@ -11,6 +11,9 @@ namespace Aysnc\WordPress\DynamicMedia;
 
 use Aysnc\WordPress\DynamicMedia\Adapters\Cloudinary;
 use WP_HTML_Tag_Processor;
+use WP_Post;
+use WP_REST_Request;
+use WP_REST_Response;
 
 class Plugin {
 	/**
@@ -19,6 +22,13 @@ class Plugin {
 	 * @var bool $paused Paused or not.
 	 */
 	protected static bool $paused = false;
+
+	/**
+	 * Plugin configuration.
+	 *
+	 * @var array{rest_api_enabled: bool}|array{} $config Plugin configuration.
+	 */
+	protected static array $config = [];
 
 	/**
 	 * Bootstrap.
@@ -30,6 +40,25 @@ class Plugin {
 		add_filter( 'image_downsize', [ __CLASS__, 'filter_image_downsize' ], 999, 3 );
 		add_filter( 'wp_calculate_image_srcset', [ __CLASS__, 'filter_wp_calculate_image_srcset' ], 999, 5 );
 		add_filter( 'the_content', [ __CLASS__, 'update_content_images' ], 999 );
+		add_filter( 'rest_prepare_attachment', [ __CLASS__, 'filter_rest_prepare_attachment' ], 999, 3 );
+	}
+
+	/**
+	 * Get the plugin configuration.
+	 *
+	 * @return array{rest_api_enabled: bool}
+	 */
+	public static function get_config(): array {
+		if ( ! empty( self::$config ) ) {
+			return self::$config;
+		}
+
+		self::$config = (array) apply_filters( 'aysnc_wordpress_dynamic_media_config', [] );
+		self::$config = [
+			'rest_api_enabled' => isset( self::$config['rest_api_enabled'] ) && is_bool( self::$config['rest_api_enabled'] ) ? self::$config['rest_api_enabled'] : true,
+		];
+
+		return self::$config;
 	}
 
 	/**
@@ -287,5 +316,75 @@ class Plugin {
 	 */
 	public static function pause( bool $paused = true ): void {
 		self::$paused = $paused;
+	}
+
+	/**
+	 * Filter REST API attachment response to use dynamic media URLs.
+	 *
+	 * @param WP_REST_Response $response   The response object.
+	 * @param WP_Post          $attachment The attachment post object.
+	 * @param WP_REST_Request  $request    The request object.
+	 *
+	 * @return WP_REST_Response The modified response object.
+	 */
+	public static function filter_rest_prepare_attachment( WP_REST_Response $response, WP_Post $attachment, WP_REST_Request $request ): WP_REST_Response {
+		if ( self::$paused ) {
+			return $response;
+		}
+
+		// Check global config.
+		$config = self::get_config();
+		if ( ! $config['rest_api_enabled'] ) {
+			return $response;
+		}
+
+		// Allow per-request filtering.
+		$enabled = (bool) apply_filters( 'aysnc_wordpress_dynamic_media_rest_enabled', true, $request, $attachment );
+		if ( ! $enabled ) {
+			return $response;
+		}
+
+		$data          = $response->get_data();
+		$attachment_id = $attachment->ID;
+
+		// Transform source_url.
+		if ( isset( $data['source_url'] ) && is_string( $data['source_url'] ) ) {
+			$dynamic_url = Media::get_dynamic_url( $attachment_id, [] );
+			if ( ! empty( $dynamic_url ) ) {
+				$data['source_url'] = $dynamic_url;
+			}
+		}
+
+		// Transform media_details.sizes.
+		if ( isset( $data['media_details']['sizes'] ) && is_array( $data['media_details']['sizes'] ) ) {
+			foreach ( $data['media_details']['sizes'] as $size_name => $size_data ) {
+				if ( ! is_array( $size_data ) || ! isset( $size_data['source_url'] ) ) {
+					continue;
+				}
+
+				$dimensions = [];
+				if ( isset( $size_data['width'] ) ) {
+					$dimensions['width'] = (int) $size_data['width'];
+				}
+				if ( isset( $size_data['height'] ) ) {
+					$dimensions['height'] = (int) $size_data['height'];
+				}
+
+				// Get crop setting from registered sizes.
+				$registered_size = Media::get_image_size_by_name( $size_name );
+				if ( ! empty( $registered_size ) && isset( $registered_size['crop'] ) ) {
+					$dimensions['hard_crop'] = (bool) $registered_size['crop'];
+				}
+
+				$dynamic_url = Media::get_dynamic_url( $attachment_id, $dimensions );
+				if ( ! empty( $dynamic_url ) ) {
+					$data['media_details']['sizes'][ $size_name ]['source_url'] = $dynamic_url;
+				}
+			}
+		}
+
+		$response->set_data( $data );
+
+		return $response;
 	}
 }
