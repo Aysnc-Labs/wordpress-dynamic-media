@@ -46,7 +46,9 @@ class Plugin {
 	/**
 	 * Get the plugin configuration.
 	 *
-	 * @return array{rest_api_enabled: bool}
+	 * @return array{
+	 *     rest_api_enabled: bool,
+	 * }
 	 */
 	public static function get_config(): array {
 		if ( ! empty( self::$config ) ) {
@@ -347,8 +349,17 @@ class Plugin {
 		$data          = $response->get_data();
 		$attachment_id = $attachment->ID;
 
+		if (
+			! is_array( $data )
+			|| ! isset( $data['source_url'] )
+			|| ! isset( $data['media_details'] )
+			|| ! is_array( $data['media_details'] )
+		) {
+			return $response;
+		}
+
 		// Transform source_url.
-		if ( isset( $data['source_url'] ) && is_string( $data['source_url'] ) ) {
+		if ( is_string( $data['source_url'] ) ) {
 			$dynamic_url = Media::get_dynamic_url( $attachment_id, [] );
 			if ( ! empty( $dynamic_url ) ) {
 				$data['source_url'] = $dynamic_url;
@@ -363,21 +374,21 @@ class Plugin {
 				}
 
 				$dimensions = [];
-				if ( isset( $size_data['width'] ) ) {
+				if ( isset( $size_data['width'] ) && is_numeric( $size_data['width'] ) ) {
 					$dimensions['width'] = (int) $size_data['width'];
 				}
-				if ( isset( $size_data['height'] ) ) {
+				if ( isset( $size_data['height'] ) && is_numeric( $size_data['height'] ) ) {
 					$dimensions['height'] = (int) $size_data['height'];
 				}
 
 				// Get crop setting from registered sizes.
 				$registered_size = Media::get_image_size_by_name( $size_name );
-				if ( ! empty( $registered_size ) && isset( $registered_size['crop'] ) ) {
+				if ( ! empty( $registered_size ) ) {
 					$dimensions['hard_crop'] = (bool) $registered_size['crop'];
 				}
 
 				$dynamic_url = Media::get_dynamic_url( $attachment_id, $dimensions );
-				if ( ! empty( $dynamic_url ) ) {
+				if ( ! empty( $dynamic_url ) && is_array( $data['media_details']['sizes'][ $size_name ] ) ) {
 					$data['media_details']['sizes'][ $size_name ]['source_url'] = $dynamic_url;
 				}
 			}

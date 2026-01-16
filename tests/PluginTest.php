@@ -277,7 +277,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$dimensions = Plugin::get_srcset_dimensions( $image_meta, $source, $registered_sizes );
 
-		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType.
 		$this->assertSame( 300, $dimensions['width'] );
 		$this->assertSame( 200, $dimensions['height'] );
 		$this->assertTrue( $dimensions['hard_crop'] );
@@ -303,7 +302,6 @@ class PluginTest extends WP_UnitTestCase {
 
 		$dimensions = Plugin::get_srcset_dimensions( $image_meta, $source, [] );
 
-		$this->assertIsArray( $dimensions ); // @phpstan-ignore method.alreadyNarrowedType.
 		$this->assertSame( 300, $dimensions['width'] );
 		$this->assertArrayNotHasKey( 'height', $dimensions );
 	}
@@ -312,7 +310,7 @@ class PluginTest extends WP_UnitTestCase {
 	 * Test update_content_images.
 	 */
 	public function test_update_content_images(): void {
-		// Set up adapter and config.
+		// Set up the adapter and config.
 		$this->setup_cloudinary_adapter();
 
 		// Create a test attachment.
